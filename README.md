@@ -28,3 +28,17 @@ npm run typecheck
 npm run build
 npm run dev
 ```
+
+## VPS Deployment
+
+```bash
+git clone https://github.com/rygroup-dev/tensorium-pool-website.git /root/tensorium-pool-website
+cd /root/tensorium-pool-website
+npm ci
+npm run build
+pm2 start ecosystem.config.cjs
+cp deploy/nginx-pool.tensoriumlabs.com.conf /etc/nginx/sites-available/pool.tensoriumlabs.com
+ln -sf /etc/nginx/sites-available/pool.tensoriumlabs.com /etc/nginx/sites-enabled/pool.tensoriumlabs.com
+nginx -t && systemctl reload nginx
+certbot --nginx -d pool.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
+```
