@@ -44,7 +44,7 @@ const DEFAULT_SNAPSHOT: PoolSnapshot = {
 };
 
 const poolHost =
-  process.env.NEXT_PUBLIC_POOL_HOST ?? "pool.tensoriumlabs.com:23336";
+  process.env.NEXT_PUBLIC_POOL_HOST ?? "pooltxm.tensoriumlabs.com:23336";
 const chainName =
   process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium public testnet pool";
 

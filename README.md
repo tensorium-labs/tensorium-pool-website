@@ -14,7 +14,7 @@ Next.js frontend for the official/reference Tensorium mining pool.
 
 ```bash
 TENSORIUM_POOL_API_URL=http://127.0.0.1:23336
-NEXT_PUBLIC_POOL_HOST=pool.tensoriumlabs.com:23336
+NEXT_PUBLIC_POOL_HOST=pooltxm.tensoriumlabs.com:23336
 NEXT_PUBLIC_CHAIN_NAME=Tensorium testnet / mainnet-candidate pool
 ```
 
@@ -37,8 +37,8 @@ cd /root/tensorium-pool-website
 npm ci
 npm run build
 pm2 start ecosystem.config.cjs
-cp deploy/nginx-pool.tensoriumlabs.com.conf /etc/nginx/sites-available/pool.tensoriumlabs.com
-ln -sf /etc/nginx/sites-available/pool.tensoriumlabs.com /etc/nginx/sites-enabled/pool.tensoriumlabs.com
+cp deploy/nginx-pooltxm.tensoriumlabs.com.conf /etc/nginx/sites-available/pooltxm.tensoriumlabs.com
+ln -sf /etc/nginx/sites-available/pooltxm.tensoriumlabs.com /etc/nginx/sites-enabled/pooltxm.tensoriumlabs.com
 nginx -t && systemctl reload nginx
-certbot --nginx -d pool.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
+certbot --nginx -d pooltxm.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
 ```
