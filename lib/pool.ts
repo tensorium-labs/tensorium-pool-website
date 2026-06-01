@@ -107,3 +107,32 @@ export async function getMinerPending(address: string): Promise<MinerPending> {
   }
   return poolFetch<MinerPending>(`/pool/pending/${encodeURIComponent(cleanAddress)}`);
 }
+
+export type BlocksSnapshot = {
+  ok: boolean;
+  generatedAt: string;
+  blocks: PayoutEntry[];
+  total: number;
+  error?: string;
+};
+
+export async function getPoolBlocks(): Promise<BlocksSnapshot> {
+  try {
+    const payouts = await poolFetch<PayoutEntry[]>("/pool/accounting");
+    const sorted = [...payouts].sort((a, b) => b.block_height - a.block_height);
+    return {
+      ok: true,
+      generatedAt: new Date().toISOString(),
+      blocks: sorted,
+      total: sorted.length,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      generatedAt: new Date().toISOString(),
+      blocks: [],
+      total: 0,
+      error: error instanceof Error ? error.message : "pool backend unavailable",
+    };
+  }
+}
