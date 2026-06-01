@@ -15,7 +15,7 @@ Next.js frontend for the official/reference Tensorium mining pool.
 ```bash
 TENSORIUM_POOL_API_URL=http://127.0.0.1:23336
 NEXT_PUBLIC_POOL_HOST=pooltxm.tensoriumlabs.com:23336
-NEXT_PUBLIC_CHAIN_NAME=Tensorium testnet / mainnet-candidate pool
+NEXT_PUBLIC_CHAIN_NAME=Tensorium mainnet-candidate / testnet pool
 ```
 
 The browser talks to this Next.js app. The app proxies local requests to the pool backend, so the pool port can stay private behind nginx.
@@ -30,6 +30,11 @@ npm run dev
 ```
 
 ## VPS Deployment
+
+Current deployment order is local update -> push to
+`github.com/tensorium-labs/tensorium-pool-website` -> deploy on the existing
+DigitalOcean VPS. That VPS is the temporary mainnet-candidate host until a
+dedicated server migration is ready.
 
 ```bash
 git clone https://github.com/tensorium-labs/tensorium-pool-website.git /root/tensorium-pool-website
