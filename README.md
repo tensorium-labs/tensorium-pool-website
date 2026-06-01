@@ -32,7 +32,7 @@ npm run dev
 ## VPS Deployment
 
 ```bash
-git clone https://github.com/rygroup-dev/tensorium-pool-website.git /root/tensorium-pool-website
+git clone https://github.com/tensorium-labs/tensorium-pool-website.git /root/tensorium-pool-website
 cd /root/tensorium-pool-website
 npm ci
 npm run build
