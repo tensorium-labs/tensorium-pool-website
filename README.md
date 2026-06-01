@@ -42,3 +42,7 @@ ln -sf /etc/nginx/sites-available/pooltxm.tensoriumlabs.com /etc/nginx/sites-ena
 nginx -t && systemctl reload nginx
 certbot --nginx -d pooltxm.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
 ```
+
+## License
+
+Tensorium Pool Website is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
