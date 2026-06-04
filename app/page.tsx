@@ -20,6 +20,7 @@ import {
   POOL_TREASURY_ADDRESS,
   PayoutEntry,
   PoolSnapshot,
+  StratumWorker,
   formatTxm,
   shortHash
 } from "@/lib/pool";
@@ -39,7 +40,8 @@ const DEFAULT_SNAPSHOT: PoolSnapshot = {
     total_fee_atoms: 0,
     total_pending_net_atoms: 0
   },
-  payouts: []
+  payouts: [],
+  stratum: null
 };
 
 const poolHost =
@@ -166,6 +168,10 @@ export default function Home() {
               <dt>Updated</dt>
               <dd>{new Date(snapshot.generatedAt).toLocaleTimeString()}</dd>
             </div>
+            <div>
+              <dt>Active Workers</dt>
+              <dd>{snapshot.stratum?.authorized_workers ?? 0}</dd>
+            </div>
           </dl>
           {snapshot.error ? <p className="warning">{snapshot.error}</p> : null}
         </div>
@@ -192,6 +198,27 @@ export default function Home() {
           label="Payout Entries"
           value={snapshot.payouts.length.toLocaleString()}
         />
+        <Metric
+          icon={<Server size={22} />}
+          label="Accepted Shares"
+          value={(snapshot.stratum?.shares_accepted ?? 0).toLocaleString()}
+        />
+        <Metric
+          icon={<ShieldCheck size={22} />}
+          label="Rejected Shares"
+          value={(snapshot.stratum?.shares_rejected ?? 0).toLocaleString()}
+        />
+      </section>
+
+      <section className="sectionBlock">
+        <div className="sectionHeader">
+          <div>
+            <p className="eyebrow">Stratum live status</p>
+            <h2>Connected workers and recent share activity</h2>
+          </div>
+          <Activity size={24} />
+        </div>
+        <WorkerTable rows={snapshot.stratum?.active_workers ?? []} />
       </section>
 
       <section id="miner" className="splitSection">
@@ -334,6 +361,50 @@ function PayoutTable({ rows }: { rows: PayoutEntry[] }) {
                   {row.paid_out ? "paid" : "pending"}
                 </span>
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function WorkerTable({ rows }: { rows: StratumWorker[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="emptyState">
+        <Activity size={22} />
+        <span>No authorized stratum workers reporting yet.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Worker</th>
+            <th>Wallet</th>
+            <th>Peer</th>
+            <th>Accepted</th>
+            <th>Rejected</th>
+            <th>Last Result</th>
+            <th>Last Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.connection_id}>
+              <td>{row.worker_name}</td>
+              <td title={row.wallet_address}>{shortHash(row.wallet_address)}</td>
+              <td>{row.peer_addr}</td>
+              <td>{row.accepted_shares.toLocaleString()}</td>
+              <td>{row.rejected_shares.toLocaleString()}</td>
+              <td>
+                <span className="pill">{row.last_submit_result}</span>
+              </td>
+              <td>{new Date(row.last_seen_at_unix * 1000).toLocaleTimeString()}</td>
             </tr>
           ))}
         </tbody>

@@ -5,6 +5,29 @@ export type PoolStats = {
   total_pending_net_atoms: number;
 };
 
+export type StratumWorker = {
+  connection_id: string;
+  worker_name: string;
+  wallet_address: string;
+  peer_addr: string;
+  authorized_at_unix: number;
+  last_seen_at_unix: number;
+  accepted_shares: number;
+  rejected_shares: number;
+  last_submit_result: string;
+};
+
+export type StratumSnapshot = {
+  stratum_workers: number;
+  authorized_workers: number;
+  stratum_port: number;
+  share_difficulty: number;
+  shares_accepted: number;
+  shares_rejected: number;
+  blocks_found: number;
+  active_workers: StratumWorker[];
+};
+
 export type PayoutEntry = {
   block_height: number;
   block_hash: string;
@@ -26,6 +49,7 @@ export type PoolSnapshot = {
   poolApiUrl: string;
   stats: PoolStats;
   payouts: PayoutEntry[];
+  stratum: StratumSnapshot | null;
   error?: string;
 };
 
@@ -80,13 +104,17 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
       poolFetch<PoolStats>("/pool/stats"),
       poolFetch<PayoutEntry[]>("/pool/accounting")
     ]);
+    const stratum = await poolFetch<StratumSnapshot>("/pool/stratum").catch(
+      () => null
+    );
 
     return {
       ok: true,
       generatedAt: new Date().toISOString(),
       poolApiUrl: getPoolApiUrl(),
       stats,
-      payouts
+      payouts,
+      stratum
     };
   } catch (error) {
     return {
@@ -95,6 +123,7 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
       poolApiUrl: getPoolApiUrl(),
       stats: EMPTY_STATS,
       payouts: [],
+      stratum: null,
       error: error instanceof Error ? error.message : "pool backend unavailable"
     };
   }
