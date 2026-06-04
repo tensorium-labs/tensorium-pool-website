@@ -250,8 +250,9 @@ export default function Home() {
           </p>
         </div>
         <div className="commandPanel">
-          <Command text={`txmminer ${poolHost} <your_txm_address>`} />
-          <Command text={`txmminer-cuda ${poolHost} <your_txm_address>`} />
+          <Command
+            text={`tensorium-miner --mode pool --pool stratum+tcp://${poolHost} --wallet <your_txm_address> --worker <worker_name> --gpu all --intensity auto`}
+          />
           <a href="https://docs.tensoriumlabs.com/mining.html">
             Mining docs <ExternalLink size={16} />
           </a>

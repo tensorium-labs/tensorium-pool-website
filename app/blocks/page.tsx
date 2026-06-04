@@ -121,7 +121,7 @@ export default function BlocksPage() {
                 {shortHash(POOL_TREASURY_ADDRESS)}
               </a>
             </span>
-            <span>Solo mining is fee-free — point txmminer directly at a node.</span>
+            <span>Solo mining is fee-free — point tensorium-miner directly at a node.</span>
           </div>
 
           {loading ? (
