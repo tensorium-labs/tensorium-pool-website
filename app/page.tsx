@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Gauge,
   History,
-  Pickaxe,
   Search,
   Server,
   ShieldCheck,
@@ -110,7 +109,7 @@ export default function Home() {
       <header className="topbar">
         <div className="brand">
           <div className="brandMark">
-            <Pickaxe size={20} />
+            <img src="/assets/tensorium-mark.svg" alt="Tensorium" />
           </div>
           <div>
             <span>Tensorium Pool</span>

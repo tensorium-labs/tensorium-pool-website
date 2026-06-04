@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, ExternalLink, Pickaxe } from "lucide-react";
+import { Blocks, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   BlocksSnapshot,
@@ -60,7 +60,7 @@ export default function BlocksPage() {
       <header className="topbar">
         <div className="brand">
           <div className="brandMark">
-            <Pickaxe size={20} />
+            <img src="/assets/tensorium-mark.svg" alt="Tensorium" />
           </div>
           <div>
             <span>Tensorium Pool</span>

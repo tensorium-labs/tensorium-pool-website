@@ -3,7 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tensorium Pool",
-  description: "Official Tensorium mining pool stats, payout history, and connection guide"
+  description: "Official Tensorium mining pool stats, payout history, and connection guide",
+  icons: {
+    icon: "/assets/tensorium-mark.svg"
+  }
 };
 
 export default function RootLayout({

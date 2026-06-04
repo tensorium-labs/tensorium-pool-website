@@ -69,13 +69,18 @@ main {
 }
 
 .brandMark {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 42px;
   height: 42px;
-  place-items: center;
-  color: #fff;
-  background: linear-gradient(135deg, var(--cyan), var(--green));
-  border-radius: 8px;
+}
+
+.brandMark img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(11, 142, 163, 0.28));
 }
 
 .brand span,
