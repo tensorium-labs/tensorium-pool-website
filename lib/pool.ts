@@ -32,7 +32,7 @@ export type PoolSnapshot = {
 export const POOL_FEE_BPS = 500;
 export const POOL_FEE_PERCENT = POOL_FEE_BPS / 100;
 export const POOL_TREASURY_ADDRESS =
-  "txm10wa2dazhn2yqwwxkm4aegvzjq55hj9m2jlznt9";
+  "txm13vgxzj5ulrfhe7x0mlzxg0q6veq42tkku4g3jr";
 
 const EMPTY_STATS: PoolStats = {
   blocks_found: 0,
