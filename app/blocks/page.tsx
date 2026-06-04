@@ -12,7 +12,8 @@ import {
 
 const EXPLORER = "https://explorer.tensoriumlabs.com";
 const chainName =
-  process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium public testnet pool";
+  process.env.NEXT_PUBLIC_CHAIN_NAME ??
+  "Tensorium mainnet pool (tensorium-mainnet-candidate-0)";
 
 const EMPTY: BlocksSnapshot = {
   ok: false,
