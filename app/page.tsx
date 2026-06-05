@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   BadgeCent,
@@ -14,7 +16,7 @@ import {
   ShieldCheck,
   Wallet
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import {
   POOL_FEE_PERCENT,
   POOL_TREASURY_ADDRESS,
@@ -24,11 +26,6 @@ import {
   formatTxm,
   shortHash
 } from "@/lib/pool";
-
-type MinerLookup = {
-  miner_address: string;
-  pending_net_atoms: number;
-};
 
 const DEFAULT_SNAPSHOT: PoolSnapshot = {
   ok: false,
@@ -50,10 +47,11 @@ const chainName =
   process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium mainnet pool (tensorium-mainnet-candidate-0)";
 
 export default function Home() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [snapshot, setSnapshot] = useState<PoolSnapshot>(DEFAULT_SNAPSHOT);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState("");
-  const [lookup, setLookup] = useState<MinerLookup | null>(null);
   const [lookupError, setLookupError] = useState("");
 
   useEffect(() => {
@@ -83,7 +81,6 @@ export default function Home() {
 
   async function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLookup(null);
     setLookupError("");
 
     const cleanAddress = address.trim();
@@ -91,19 +88,9 @@ export default function Home() {
       setLookupError("Enter a miner address first.");
       return;
     }
-
-    const response = await fetch(
-      `/api/miner?address=${encodeURIComponent(cleanAddress)}`,
-      { cache: "no-store" }
-    );
-    const data = await response.json();
-
-    if (!response.ok) {
-      setLookupError(data.error ?? "Lookup failed.");
-      return;
-    }
-
-    setLookup(data as MinerLookup);
+    startTransition(() => {
+      router.push(`/miner/${encodeURIComponent(cleanAddress)}`);
+    });
   }
 
   return (
@@ -227,10 +214,10 @@ export default function Home() {
           <h2>Check pending payout</h2>
           <p>
             Paste the wallet address used by your miner. The pool returns unpaid
-            net TXM after the official pool fee.
+            net TXM after the official pool fee, then opens the miner dashboard.
           </p>
         </div>
-        <form className="lookupPanel" onSubmit={submitLookup}>
+        <form className="lookupPanel" onSubmit={submitLookup} aria-busy={isPending}>
           <label htmlFor="miner-address">Miner wallet address</label>
           <div className="lookupRow">
             <input
@@ -244,12 +231,10 @@ export default function Home() {
               <Search size={18} />
             </button>
           </div>
-          {lookup ? (
-            <div className="lookupResult">
-              <Wallet size={20} />
-              <span>{formatTxm(lookup.pending_net_atoms)} TXM pending</span>
-            </div>
-          ) : null}
+          <div className="lookupHint">
+            <Wallet size={18} />
+            <span>{isPending ? "Opening miner dashboard..." : "Search opens the address dashboard."}</span>
+          </div>
           {lookupError ? <p className="warning">{lookupError}</p> : null}
         </form>
       </section>
@@ -351,7 +336,11 @@ function PayoutTable({ rows }: { rows: PayoutEntry[] }) {
           {rows.map((row) => (
             <tr key={`${row.block_height}-${row.block_hash}`}>
               <td>{row.block_height.toLocaleString()}</td>
-              <td title={row.miner_address}>{shortHash(row.miner_address)}</td>
+              <td title={row.miner_address}>
+                <Link href={`/miner/${encodeURIComponent(row.miner_address)}`}>
+                  {shortHash(row.miner_address)}
+                </Link>
+              </td>
               <td title={row.block_hash}>{shortHash(row.block_hash)}</td>
               <td>{formatTxm(row.gross_reward_atoms)}</td>
               <td>{formatTxm(row.pool_fee_atoms)}</td>
@@ -397,7 +386,11 @@ function WorkerTable({ rows }: { rows: StratumWorker[] }) {
           {rows.map((row) => (
             <tr key={row.connection_id}>
               <td>{row.worker_name}</td>
-              <td title={row.wallet_address}>{shortHash(row.wallet_address)}</td>
+              <td title={row.wallet_address}>
+                <Link href={`/miner/${encodeURIComponent(row.wallet_address)}`}>
+                  {shortHash(row.wallet_address)}
+                </Link>
+              </td>
               <td>{row.peer_addr}</td>
               <td>{row.accepted_shares.toLocaleString()}</td>
               <td>{row.rejected_shares.toLocaleString()}</td>
