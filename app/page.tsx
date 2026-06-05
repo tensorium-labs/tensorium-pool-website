@@ -24,8 +24,17 @@ import {
   PoolSnapshot,
   StratumWorker,
   formatTxm,
+  formatHashrate,
   shortHash
 } from "@/lib/pool";
+
+function estimateWorkerHashrateLocal(worker: StratumWorker): number {
+  const diff = worker.share_diff ?? 0;
+  if (!diff) return 0;
+  const elapsed = Math.max(1, worker.last_seen_at_unix - worker.authorized_at_unix);
+  const bits = worker.share_diff_bits ?? 0;
+  return (worker.accepted_shares * Math.pow(2, bits)) / elapsed;
+}
 
 const DEFAULT_SNAPSHOT: PoolSnapshot = {
   ok: false,
@@ -375,7 +384,8 @@ function WorkerTable({ rows }: { rows: StratumWorker[] }) {
           <tr>
             <th>Worker</th>
             <th>Wallet</th>
-            <th>Peer</th>
+            <th>Hashrate</th>
+            <th>Share Diff</th>
             <th>Accepted</th>
             <th>Rejected</th>
             <th>Last Result</th>
@@ -383,23 +393,33 @@ function WorkerTable({ rows }: { rows: StratumWorker[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.connection_id}>
-              <td>{row.worker_name}</td>
-              <td title={row.wallet_address}>
-                <Link href={`/miner/${encodeURIComponent(row.wallet_address)}`}>
-                  {shortHash(row.wallet_address)}
-                </Link>
-              </td>
-              <td>{row.peer_addr}</td>
-              <td>{row.accepted_shares.toLocaleString()}</td>
-              <td>{row.rejected_shares.toLocaleString()}</td>
-              <td>
-                <span className="pill">{row.last_submit_result}</span>
-              </td>
-              <td>{new Date(row.last_seen_at_unix * 1000).toLocaleTimeString()}</td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const total = row.accepted_shares + row.rejected_shares;
+            const rejPct = total > 0 ? ((row.rejected_shares / total) * 100).toFixed(1) : "0.0";
+            const hashrate = estimateWorkerHashrateLocal(row);
+            return (
+              <tr key={row.connection_id}>
+                <td>{row.worker_name}</td>
+                <td title={row.wallet_address}>
+                  <Link href={`/miner/${encodeURIComponent(row.wallet_address)}`}>
+                    {shortHash(row.wallet_address)}
+                  </Link>
+                </td>
+                <td>{hashrate > 0 ? formatHashrate(hashrate) : "—"}</td>
+                <td title={row.share_diff?.toLocaleString()}>
+                  {row.share_diff_bits != null ? `${row.share_diff_bits} bit` : "—"}
+                </td>
+                <td>{row.accepted_shares.toLocaleString()}</td>
+                <td title={`${rejPct}%`}>{row.rejected_shares.toLocaleString()}</td>
+                <td>
+                  <span className={`pill ${row.last_submit_result === "block" ? "paid" : ""}`}>
+                    {row.last_submit_result}
+                  </span>
+                </td>
+                <td>{new Date(row.last_seen_at_unix * 1000).toLocaleTimeString()}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

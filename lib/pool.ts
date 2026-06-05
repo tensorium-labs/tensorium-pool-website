@@ -15,17 +15,33 @@ export type StratumWorker = {
   accepted_shares: number;
   rejected_shares: number;
   last_submit_result: string;
+  /** Per-worker vardiff: leading-zero bits required for a valid share. */
+  share_diff_bits?: number;
+  /** Per-worker vardiff: raw difficulty threshold (2^share_diff_bits). */
+  share_diff?: number;
+};
+
+export type VardiffConfig = {
+  window_secs: number;
+  target_min: number;
+  target_max: number;
+  min_bits: number;
+  max_bits: number;
 };
 
 export type StratumSnapshot = {
   stratum_workers: number;
   authorized_workers: number;
   stratum_port: number;
-  share_difficulty: number;
+  /** @deprecated Replaced by initial_share_diff_bits + per-worker share_diff_bits */
+  share_difficulty?: number;
+  /** Initial/global share difficulty in bits (new field). */
+  initial_share_diff_bits?: number;
   shares_accepted: number;
   shares_rejected: number;
   blocks_found: number;
   active_workers: StratumWorker[];
+  vardiff?: VardiffConfig;
 };
 
 export type PayoutEntry = {
@@ -185,17 +201,17 @@ function shareBitsFromDifficulty(diff: number) {
   return bits;
 }
 
-function estimateWorkerHashrate(worker: StratumWorker, shareDifficulty: number | null) {
-  if (!shareDifficulty || shareDifficulty < 1) {
-    return 0;
-  }
+function estimateWorkerHashrate(worker: StratumWorker, globalShareDifficulty: number | null) {
+  // Use per-worker share_diff if available (vardiff), else fall back to global.
+  const diff = worker.share_diff ?? globalShareDifficulty;
+  if (!diff || diff < 1) return 0;
 
   const elapsedSeconds = Math.max(
     1,
     worker.last_seen_at_unix - worker.authorized_at_unix
   );
-  const shareBits = shareBitsFromDifficulty(shareDifficulty);
-  const hashesPerAcceptedShare = 2 ** shareBits;
+  const shareBits = worker.share_diff_bits ?? shareBitsFromDifficulty(diff);
+  const hashesPerAcceptedShare = Math.pow(2, shareBits);
 
   return (worker.accepted_shares * hashesPerAcceptedShare) / elapsedSeconds;
 }
@@ -222,7 +238,11 @@ export async function getMinerDashboard(address: string): Promise<MinerDashboard
     snapshot.stratum?.active_workers.filter(
       (worker) => worker.wallet_address === cleanAddress
     ) ?? [];
-  const shareDifficulty = snapshot.stratum?.share_difficulty ?? null;
+  // Prefer global initial diff from new API; fall back to legacy share_difficulty field.
+  const shareDifficulty =
+    snapshot.stratum?.initial_share_diff_bits != null
+      ? Math.pow(2, snapshot.stratum.initial_share_diff_bits)
+      : (snapshot.stratum?.share_difficulty ?? null);
 
   const totalPaidAtoms = payoutHistory
     .filter((entry) => entry.paid_out)
