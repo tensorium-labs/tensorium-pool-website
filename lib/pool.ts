@@ -103,6 +103,14 @@ export function getPoolApiUrl() {
   return process.env.TENSORIUM_POOL_API_URL ?? "http://127.0.0.1:23336";
 }
 
+/** Secondary pool URLs to aggregate (comma-separated, server-side only). */
+function getSecondaryPoolUrls(): string[] {
+  return (process.env.TENSORIUM_POOL_API_URL_SECONDARY ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 export function atomsToTxm(value: number) {
   return value / 100_000_000;
 }
@@ -152,35 +160,89 @@ async function poolFetch<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function getPoolSnapshot(): Promise<PoolSnapshot> {
+async function fetchOnePool(baseUrl: string): Promise<{
+  stats: PoolStats; payouts: PayoutEntry[]; stratum: StratumSnapshot | null;
+} | null> {
   try {
-    const [stats, payouts] = await Promise.all([
-      poolFetch<PoolStats>("/pool/stats"),
-      poolFetch<PayoutEntry[]>("/pool/accounting")
-    ]);
-    const stratum = await poolFetch<StratumSnapshot>("/pool/stratum").catch(
-      () => null
-    );
-
-    return {
-      ok: true,
-      generatedAt: new Date().toISOString(),
-      poolApiUrl: getPoolApiUrl(),
-      stats,
-      payouts,
-      stratum
+    const fetchFrom = async <T>(path: string): Promise<T> => {
+      const r = await fetch(`${baseUrl}${path}`, { cache: "no-store", headers: { accept: "application/json" } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json() as Promise<T>;
     };
-  } catch (error) {
+    const [stats, payouts] = await Promise.all([
+      fetchFrom<PoolStats>("/pool/stats"),
+      fetchFrom<PayoutEntry[]>("/pool/accounting"),
+    ]);
+    const stratum = await fetchFrom<StratumSnapshot>("/pool/stratum").catch(() => null);
+    return { stats, payouts, stratum };
+  } catch {
+    return null;
+  }
+}
+
+export async function getPoolSnapshot(): Promise<PoolSnapshot> {
+  const primaryUrl = getPoolApiUrl();
+  const secondaryUrls = getSecondaryPoolUrls();
+
+  // Fetch from all pool backends in parallel.
+  const [primary, ...secondaries] = await Promise.all([
+    fetchOnePool(primaryUrl),
+    ...secondaryUrls.map(fetchOnePool),
+  ]);
+
+  if (!primary && secondaries.every(s => s === null)) {
     return {
       ok: false,
       generatedAt: new Date().toISOString(),
-      poolApiUrl: getPoolApiUrl(),
+      poolApiUrl: primaryUrl,
       stats: EMPTY_STATS,
       payouts: [],
       stratum: null,
-      error: error instanceof Error ? error.message : "pool backend unavailable"
+      error: "all pool backends unavailable",
     };
   }
+
+  // Merge: sum stats, deduplicate payouts by block_height+hash, merge workers.
+  const allResults = [primary, ...secondaries].filter((r): r is NonNullable<typeof r> => r !== null);
+
+  const mergedStats: PoolStats = allResults.reduce((acc, r) => ({
+    blocks_found:             acc.blocks_found + r.stats.blocks_found,
+    total_gross_atoms:        acc.total_gross_atoms + r.stats.total_gross_atoms,
+    total_fee_atoms:          acc.total_fee_atoms + r.stats.total_fee_atoms,
+    total_pending_net_atoms:  acc.total_pending_net_atoms + r.stats.total_pending_net_atoms,
+  }), { blocks_found: 0, total_gross_atoms: 0, total_fee_atoms: 0, total_pending_net_atoms: 0 });
+
+  // Deduplicate payouts (same block may appear if two pools somehow share entries).
+  const payoutMap = new Map<string, PayoutEntry>();
+  allResults.flatMap(r => r.payouts).forEach(p => {
+    const key = `${p.block_height}-${p.block_hash}`;
+    if (!payoutMap.has(key)) payoutMap.set(key, p);
+  });
+  const mergedPayouts = Array.from(payoutMap.values())
+    .sort((a, b) => a.block_height - b.block_height);
+
+  // Merge stratum: combine workers, sum counters.
+  const stratums = allResults.map(r => r.stratum).filter((s): s is StratumSnapshot => s !== null);
+  const mergedStratum: StratumSnapshot | null = stratums.length === 0 ? null : {
+    stratum_workers:       stratums.reduce((s, x) => s + x.stratum_workers, 0),
+    authorized_workers:    stratums.reduce((s, x) => s + x.authorized_workers, 0),
+    stratum_port:          stratums[0].stratum_port,
+    initial_share_diff_bits: stratums[0].initial_share_diff_bits,
+    shares_accepted:       stratums.reduce((s, x) => s + x.shares_accepted, 0),
+    shares_rejected:       stratums.reduce((s, x) => s + x.shares_rejected, 0),
+    blocks_found:          stratums.reduce((s, x) => s + x.blocks_found, 0),
+    active_workers:        stratums.flatMap(x => x.active_workers),
+    vardiff:               stratums[0].vardiff,
+  };
+
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    poolApiUrl: primaryUrl,
+    stats: mergedStats,
+    payouts: mergedPayouts,
+    stratum: mergedStratum,
+  };
 }
 
 export async function getMinerPending(address: string): Promise<MinerPending> {
