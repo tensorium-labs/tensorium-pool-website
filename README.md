@@ -45,8 +45,12 @@ pm2 start ecosystem.config.cjs
 cp deploy/nginx-pooltxm.tensoriumlabs.com.conf /etc/nginx/sites-available/pooltxm.tensoriumlabs.com
 ln -sf /etc/nginx/sites-available/pooltxm.tensoriumlabs.com /etc/nginx/sites-enabled/pooltxm.tensoriumlabs.com
 nginx -t && systemctl reload nginx
-certbot --nginx -d pooltxm.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
+certbot --nginx -d pooltxm.tensoriumlabs.com -d pool-alt.tensoriumlabs.com --non-interactive --agree-tos -m admin@tensoriumlabs.com
 ```
+
+If `pooltxm.tensoriumlabs.com` already has a certificate and you are only adding
+the new alias, rerun Certbot with both names so the existing certificate is
+expanded to include `pool-alt.tensoriumlabs.com`.
 
 ## License
 
