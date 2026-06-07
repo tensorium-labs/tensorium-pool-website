@@ -258,6 +258,10 @@ export default function Home() {
           <div>
             <p className="eyebrow">Payout history</p>
             <h2>Gross, fee, and net per accepted block</h2>
+            <p className="sectionNote">
+              This table shows <strong>pool ledger</strong> entries only. Direct or solo-mined
+              blocks settle on-chain to the miner wallet and do not appear in pool payout accounting.
+            </p>
           </div>
           <History size={24} />
         </div>
@@ -338,6 +342,7 @@ function PayoutTable({ rows }: { rows: PayoutEntry[] }) {
         <thead>
           <tr>
             <th>Height</th>
+            <th>Source</th>
             <th>Miner</th>
             <th>Block</th>
             <th>Gross</th>
@@ -350,6 +355,9 @@ function PayoutTable({ rows }: { rows: PayoutEntry[] }) {
           {rows.map((row) => (
             <tr key={`${row.block_height}-${row.block_hash}-${row.miner_address}`}>
               <td>{row.block_height.toLocaleString()}</td>
+              <td>
+                <span className="sourceBadge pool">Pool payout</span>
+              </td>
               <td title={row.miner_address}>
                 <Link href={`/miner/${encodeURIComponent(row.miner_address)}`}>
                   {shortHash(row.miner_address)}

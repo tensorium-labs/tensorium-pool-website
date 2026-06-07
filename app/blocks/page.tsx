@@ -86,6 +86,10 @@ export default function BlocksPage() {
             Every block this pool has successfully mined. Rewards are distributed
             net of the {POOL_FEE_PERCENT}% pool fee.
           </p>
+          <p className="sectionNote">
+            This page is <strong>pool-only</strong>. Direct or solo-mined blocks can still exist on-chain
+            in the explorer, but they are not listed here because they bypass pool ledger accounting.
+          </p>
         </div>
 
         <div
@@ -148,7 +152,7 @@ export default function BlocksPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    {["Height", "Block Hash", "Miner", "Gross Reward", "Pool Fee", "Net Payout", "Paid", ""].map(
+                    {["Height", "Source", "Block Hash", "Miner", "Gross Reward", "Pool Fee", "Net Payout", "Paid", ""].map(
                       (h) => (
                         <th
                           key={h}
@@ -178,6 +182,9 @@ export default function BlocksPage() {
                         >
                           #{b.block_height}
                         </a>
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        <span className="sourceBadge pool">Pool block</span>
                       </td>
                       <td style={{ padding: "11px 16px", fontFamily: "monospace" }}>
                         <a

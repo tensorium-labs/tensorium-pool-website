@@ -390,6 +390,12 @@ dd {
   margin-bottom: 20px;
 }
 
+.sectionNote {
+  max-width: 760px;
+  margin: 0;
+  font-size: 0.94rem;
+}
+
 .tableWrap {
   overflow-x: auto;
 }
@@ -431,6 +437,25 @@ td {
 .pill.paid {
   color: #0f6b48;
   background: #dff4e8;
+}
+
+.sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sourceBadge.pool {
+  color: #0b6170;
+  background: #e3f6f9;
+  border-color: #b9e6ec;
 }
 
 .emptyState {
