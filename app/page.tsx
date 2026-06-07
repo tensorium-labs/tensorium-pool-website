@@ -87,6 +87,11 @@ export default function Home() {
     () => [...snapshot.payouts].reverse().slice(0, 12),
     [snapshot.payouts]
   );
+  const showSnapshotValues = !loading || snapshot.ok;
+
+  function displayStat(value: string) {
+    return showSnapshotValues ? value : "—";
+  }
 
   async function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,19 +159,19 @@ export default function Home() {
           <dl>
             <div>
               <dt>Blocks Found</dt>
-              <dd>{snapshot.stats.blocks_found.toLocaleString()}</dd>
+              <dd>{displayStat(snapshot.stats.blocks_found.toLocaleString())}</dd>
             </div>
             <div>
               <dt>Pending Net</dt>
-              <dd>{formatTxm(snapshot.stats.total_pending_net_atoms)} TXM</dd>
+              <dd>{displayStat(`${formatTxm(snapshot.stats.total_pending_net_atoms)} TXM`)}</dd>
             </div>
             <div>
               <dt>Updated</dt>
-              <dd>{new Date(snapshot.generatedAt).toLocaleTimeString()}</dd>
+              <dd>{displayStat(new Date(snapshot.generatedAt).toLocaleTimeString())}</dd>
             </div>
             <div>
               <dt>Active Workers</dt>
-              <dd>{snapshot.stratum?.authorized_workers ?? 0}</dd>
+              <dd>{displayStat(String(snapshot.stratum?.authorized_workers ?? 0))}</dd>
             </div>
           </dl>
           {snapshot.error ? <p className="warning">{snapshot.error}</p> : null}
@@ -177,32 +182,32 @@ export default function Home() {
         <Metric
           icon={<Gauge size={22} />}
           label="Gross Rewards"
-          value={`${formatTxm(snapshot.stats.total_gross_atoms)} TXM`}
+          value={displayStat(`${formatTxm(snapshot.stats.total_gross_atoms)} TXM`)}
         />
         <Metric
           icon={<BadgeCent size={22} />}
           label="Pool Fee Collected"
-          value={`${formatTxm(snapshot.stats.total_fee_atoms)} TXM`}
+          value={displayStat(`${formatTxm(snapshot.stats.total_fee_atoms)} TXM`)}
         />
         <Metric
           icon={<CircleDollarSign size={22} />}
           label="Pending Net Payout"
-          value={`${formatTxm(snapshot.stats.total_pending_net_atoms)} TXM`}
+          value={displayStat(`${formatTxm(snapshot.stats.total_pending_net_atoms)} TXM`)}
         />
         <Metric
           icon={<Activity size={22} />}
           label="Payout Entries"
-          value={snapshot.payouts.length.toLocaleString()}
+          value={displayStat(snapshot.payouts.length.toLocaleString())}
         />
         <Metric
           icon={<Server size={22} />}
           label="Accepted Shares"
-          value={(snapshot.stratum?.shares_accepted ?? 0).toLocaleString()}
+          value={displayStat((snapshot.stratum?.shares_accepted ?? 0).toLocaleString())}
         />
         <Metric
           icon={<ShieldCheck size={22} />}
           label="Rejected Shares"
-          value={(snapshot.stratum?.shares_rejected ?? 0).toLocaleString()}
+          value={displayStat((snapshot.stratum?.shares_rejected ?? 0).toLocaleString())}
         />
       </section>
 
@@ -343,7 +348,7 @@ function PayoutTable({ rows }: { rows: PayoutEntry[] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`${row.block_height}-${row.block_hash}`}>
+            <tr key={`${row.block_height}-${row.block_hash}-${row.miner_address}`}>
               <td>{row.block_height.toLocaleString()}</td>
               <td title={row.miner_address}>
                 <Link href={`/miner/${encodeURIComponent(row.miner_address)}`}>

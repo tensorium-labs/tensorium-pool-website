@@ -202,7 +202,7 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
     };
   }
 
-  // Merge: sum stats, deduplicate payouts by block_height+hash, merge workers.
+  // Merge: sum stats, keep one entry per unique payout row, merge workers.
   const allResults = [primary, ...secondaries].filter((r): r is NonNullable<typeof r> => r !== null);
 
   const mergedStats: PoolStats = allResults.reduce((acc, r) => ({
@@ -212,10 +212,17 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
     total_pending_net_atoms:  acc.total_pending_net_atoms + r.stats.total_pending_net_atoms,
   }), { blocks_found: 0, total_gross_atoms: 0, total_fee_atoms: 0, total_pending_net_atoms: 0 });
 
-  // Deduplicate payouts (same block may appear if two pools somehow share entries).
+  // Deduplicate exact payout rows, but preserve sibling payouts from the same block.
   const payoutMap = new Map<string, PayoutEntry>();
   allResults.flatMap(r => r.payouts).forEach(p => {
-    const key = `${p.block_height}-${p.block_hash}`;
+    const key = [
+      p.block_height,
+      p.block_hash,
+      p.miner_address,
+      p.gross_reward_atoms,
+      p.pool_fee_atoms,
+      p.net_payout_atoms
+    ].join("-");
     if (!payoutMap.has(key)) payoutMap.set(key, p);
   });
   const mergedPayouts = Array.from(payoutMap.values())
