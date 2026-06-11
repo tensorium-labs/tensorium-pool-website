@@ -53,7 +53,7 @@ const DEFAULT_SNAPSHOT: PoolSnapshot = {
 const poolHost =
   process.env.NEXT_PUBLIC_POOL_HOST ?? "pooltxm.tensoriumlabs.com:3333";
 const chainName =
-  process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium mainnet pool";
+  process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium Mainnet v1 Pool";
 
 export default function Home() {
   const router = useRouter();
@@ -130,7 +130,7 @@ export default function Home() {
 
       <section className="hero">
         <div className="heroCopy">
-          <p className="eyebrow">Official reference pool</p>
+          <p className="eyebrow">Official reference pool · Mainnet v1</p>
           <h1>Mine TXM with transparent payout accounting.</h1>
           <p>
             Public stats, miner pending balances, payout history, and the fixed
