@@ -53,7 +53,7 @@ const DEFAULT_SNAPSHOT: PoolSnapshot = {
 const poolHost =
   process.env.NEXT_PUBLIC_POOL_HOST ?? "pooltxm.tensoriumlabs.com:3333";
 const chainName =
-  process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium mainnet pool (tensorium-mainnet-candidate-0)";
+  process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Tensorium mainnet pool";
 
 export default function Home() {
   const router = useRouter();
