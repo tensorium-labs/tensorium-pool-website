@@ -10,11 +10,29 @@ import {
   Wallet
 } from "lucide-react";
 import {
+  BlockStatus,
   formatHashrate,
   formatTxm,
   getMinerDashboard,
   shortHash
 } from "@/lib/pool";
+
+function payoutStatusMeta(row: { status?: BlockStatus; paid_out: boolean }) {
+  const status = row.status ?? (row.paid_out ? "paid" : "candidate");
+  switch (status) {
+    case "paid":
+      return { className: "pill paid", label: "paid" };
+    case "confirmed":
+      return { className: "pill confirmed", label: "confirmed" };
+    case "immature":
+      return { className: "pill immature", label: "immature" };
+    case "orphan":
+      return { className: "pill orphan", label: "orphan" };
+    case "candidate":
+    default:
+      return { className: "pill candidate", label: "candidate" };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -267,7 +285,9 @@ function MinerPayoutTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const status = payoutStatusMeta(row);
+            return (
             <tr key={`${row.block_height}-${row.block_hash}`}>
               <td>{row.block_height.toLocaleString()}</td>
               <td title={row.block_hash}>{shortHash(row.block_hash)}</td>
@@ -275,12 +295,12 @@ function MinerPayoutTable({
               <td>{formatTxm(row.pool_fee_atoms)}</td>
               <td>{formatTxm(row.net_payout_atoms)}</td>
               <td>
-                <span className={row.paid_out ? "pill paid" : "pill"}>
-                  {row.paid_out ? "paid" : "pending"}
+                <span className={status.className}>
+                  {status.label}
                 </span>
               </td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </div>

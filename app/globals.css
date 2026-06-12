@@ -439,6 +439,26 @@ td {
   background: #dff4e8;
 }
 
+.pill.candidate {
+  color: #475569;
+  background: #e5ebf3;
+}
+
+.pill.immature {
+  color: #9a6700;
+  background: #fff1cc;
+}
+
+.pill.confirmed {
+  color: #0b6170;
+  background: #dff5f8;
+}
+
+.pill.orphan {
+  color: #a12622;
+  background: #fde8e7;
+}
+
 .sourceBadge {
   display: inline-flex;
   align-items: center;

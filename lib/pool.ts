@@ -85,7 +85,7 @@ export type MinerDashboard = {
   total_rejected_shares: number;
   share_difficulty: number | null;
   estimated_hashrate_hps: number;
-  payout_history: PayoutEntry[];
+  payout_history: PoolBlockRow[];
   error?: string;
 };
 
@@ -94,7 +94,7 @@ export type PoolSnapshot = {
   generatedAt: string;
   poolApiUrl: string;
   stats: PoolStats;
-  payouts: PayoutEntry[];
+  payouts: PoolBlockRow[];
   stratum: StratumSnapshot | null;
   error?: string;
 };
@@ -259,7 +259,7 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
     ].join("-");
     if (!payoutMap.has(key)) payoutMap.set(key, p);
   });
-  const mergedPayouts = Array.from(payoutMap.values())
+  const mergedPayouts = (await enrichPayoutRows(Array.from(payoutMap.values())))
     .sort((a, b) => a.block_height - b.block_height);
 
   // Merge stratum: combine workers, sum counters.
@@ -451,39 +451,44 @@ function deriveBlockStatus(args: {
   return "confirmed" as const;
 }
 
+async function enrichPayoutRows(entries: PayoutEntry[]): Promise<PoolBlockRow[]> {
+  const heights = Array.from(
+    new Set(entries.map((entry) => entry.block_height))
+  ).sort((a, b) => b - a);
+  const [{ height: chainHeight }, ...blockResponses] = await Promise.all([
+    nodeFetch<NodeBlockCount>("/getblockcount").catch(() => ({ height: null })),
+    ...heights.map((height) =>
+      nodeFetch<NodeBlockAtHeight>(`/getblock/${height}`).catch(() => null)
+    )
+  ]);
+  const canonicalHashes = new Map<number, string | null>();
+  heights.forEach((height, index) => {
+    canonicalHashes.set(height, blockResponses[index]?.hash ?? null);
+  });
+
+  return entries.map((entry) => {
+    const canonicalHash = canonicalHashes.get(entry.block_height) ?? null;
+    const confirmations =
+      canonicalHash && chainHeight != null && canonicalHash === entry.block_hash
+        ? Math.max(0, chainHeight - entry.block_height + 1)
+        : null;
+    return {
+      ...entry,
+      confirmations,
+      status: deriveBlockStatus({
+        paidOut: entry.paid_out,
+        canonicalHash,
+        ledgerHash: entry.block_hash,
+        confirmations
+      })
+    };
+  });
+}
+
 export async function getPoolBlocks(): Promise<BlocksSnapshot> {
   try {
     const payouts = await poolFetch<PayoutEntry[]>("/pool/accounting");
-    const heights = Array.from(
-      new Set(payouts.map((entry) => entry.block_height))
-    ).sort((a, b) => b - a);
-    const [{ height: chainHeight }, ...blockResponses] = await Promise.all([
-      nodeFetch<NodeBlockCount>("/getblockcount").catch(() => ({ height: null })),
-      ...heights.map((height) =>
-        nodeFetch<NodeBlockAtHeight>(`/getblock/${height}`).catch(() => null)
-      )
-    ]);
-    const canonicalHashes = new Map<number, string | null>();
-    heights.forEach((height, index) => {
-      canonicalHashes.set(height, blockResponses[index]?.hash ?? null);
-    });
-    const rows = payouts.map((entry) => {
-      const canonicalHash = canonicalHashes.get(entry.block_height) ?? null;
-      const confirmations =
-        canonicalHash && chainHeight != null && canonicalHash === entry.block_hash
-          ? Math.max(0, chainHeight - entry.block_height + 1)
-          : null;
-      return {
-        ...entry,
-        confirmations,
-        status: deriveBlockStatus({
-          paidOut: entry.paid_out,
-          canonicalHash,
-          ledgerHash: entry.block_hash,
-          confirmations
-        })
-      };
-    });
+    const rows = await enrichPayoutRows(payouts);
     const sorted = [...rows].sort((a, b) => b.block_height - a.block_height);
     const total = new Set(
       sorted.map((entry) => `${entry.block_height}:${entry.block_hash}`)
