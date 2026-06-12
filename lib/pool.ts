@@ -91,6 +91,7 @@ export const POOL_FEE_BPS = 500;
 export const POOL_FEE_PERCENT = POOL_FEE_BPS / 100;
 export const POOL_TREASURY_ADDRESS =
   "txm1px2nmtp087mz8dv3lplqadwzxawk0c5kg0mt24";
+const ACTIVE_WORKER_MAX_IDLE_SECS = 120;
 
 const EMPTY_STATS: PoolStats = {
   blocks_found: 0,
@@ -180,9 +181,21 @@ async function fetchOnePool(baseUrl: string): Promise<{
   }
 }
 
+function filterFreshWorkers(
+  workers: StratumWorker[],
+  generatedAtUnix: number
+) {
+  return workers.filter((worker) => {
+    const lastSeen = worker.last_seen_at_unix || worker.authorized_at_unix || 0;
+    return generatedAtUnix - lastSeen <= ACTIVE_WORKER_MAX_IDLE_SECS;
+  });
+}
+
 export async function getPoolSnapshot(): Promise<PoolSnapshot> {
   const primaryUrl = getPoolApiUrl();
   const secondaryUrls = getSecondaryPoolUrls();
+  const generatedAt = new Date().toISOString();
+  const generatedAtUnix = Math.floor(Date.parse(generatedAt) / 1000);
 
   // Fetch from all pool backends in parallel.
   const [primary, ...secondaries] = await Promise.all([
@@ -230,21 +243,25 @@ export async function getPoolSnapshot(): Promise<PoolSnapshot> {
 
   // Merge stratum: combine workers, sum counters.
   const stratums = allResults.map(r => r.stratum).filter((s): s is StratumSnapshot => s !== null);
+  const mergedWorkers = filterFreshWorkers(
+    stratums.flatMap(x => x.active_workers),
+    generatedAtUnix
+  );
   const mergedStratum: StratumSnapshot | null = stratums.length === 0 ? null : {
-    stratum_workers:       stratums.reduce((s, x) => s + x.stratum_workers, 0),
-    authorized_workers:    stratums.reduce((s, x) => s + x.authorized_workers, 0),
+    stratum_workers:       mergedWorkers.length,
+    authorized_workers:    mergedWorkers.length,
     stratum_port:          stratums[0].stratum_port,
     initial_share_diff_bits: stratums[0].initial_share_diff_bits,
     shares_accepted:       stratums.reduce((s, x) => s + x.shares_accepted, 0),
     shares_rejected:       stratums.reduce((s, x) => s + x.shares_rejected, 0),
     blocks_found:          stratums.reduce((s, x) => s + x.blocks_found, 0),
-    active_workers:        stratums.flatMap(x => x.active_workers),
+    active_workers:        mergedWorkers,
     vardiff:               stratums[0].vardiff,
   };
 
   return {
     ok: true,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     poolApiUrl: primaryUrl,
     stats: mergedStats,
     payouts: mergedPayouts,
