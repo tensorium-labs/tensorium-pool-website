@@ -54,6 +54,18 @@ export type PayoutEntry = {
   paid_out: boolean;
 };
 
+export type BlockStatus =
+  | "candidate"
+  | "immature"
+  | "confirmed"
+  | "orphan"
+  | "paid";
+
+export type PoolBlockRow = PayoutEntry & {
+  status: BlockStatus;
+  confirmations: number | null;
+};
+
 export type MinerPending = {
   miner_address: string;
   pending_net_atoms: number;
@@ -92,6 +104,11 @@ export const POOL_FEE_PERCENT = POOL_FEE_BPS / 100;
 export const POOL_TREASURY_ADDRESS =
   "txm1px2nmtp087mz8dv3lplqadwzxawk0c5kg0mt24";
 const ACTIVE_WORKER_MAX_IDLE_SECS = 120;
+const DEFAULT_NODE_RPC_URL = "https://rpc.tensoriumlabs.com";
+const COINBASE_MATURITY_BLOCKS = Number.parseInt(
+  process.env.TENSORIUM_COINBASE_MATURITY_BLOCKS ?? "10",
+  10
+);
 
 const EMPTY_STATS: PoolStats = {
   blocks_found: 0,
@@ -102,6 +119,10 @@ const EMPTY_STATS: PoolStats = {
 
 export function getPoolApiUrl() {
   return process.env.TENSORIUM_POOL_API_URL ?? "http://127.0.0.1:23336";
+}
+
+function getNodeRpcUrl() {
+  return process.env.TENSORIUM_NODE_RPC_URL ?? DEFAULT_NODE_RPC_URL;
 }
 
 /** Secondary pool URLs to aggregate (comma-separated, server-side only). */
@@ -378,20 +399,100 @@ export async function getMinerDashboard(address: string): Promise<MinerDashboard
 export type BlocksSnapshot = {
   ok: boolean;
   generatedAt: string;
-  blocks: PayoutEntry[];
+  blocks: PoolBlockRow[];
   total: number;
   error?: string;
 };
 
+type NodeBlockCount = {
+  height?: number | null;
+};
+
+type NodeBlockAtHeight = {
+  hash: string;
+};
+
+async function nodeFetch<T>(path: string): Promise<T> {
+  const response = await fetch(`${getNodeRpcUrl()}${path}`, {
+    cache: "no-store",
+    headers: { accept: "application/json" }
+  });
+
+  if (!response.ok) {
+    throw new Error(`node ${path} returned HTTP ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+function deriveBlockStatus(args: {
+  paidOut: boolean;
+  canonicalHash: string | null;
+  ledgerHash: string;
+  confirmations: number | null;
+}) {
+  const { paidOut, canonicalHash, ledgerHash, confirmations } = args;
+
+  if (paidOut) {
+    return "paid" as const;
+  }
+  if (!canonicalHash) {
+    return "candidate" as const;
+  }
+  if (canonicalHash !== ledgerHash) {
+    return "orphan" as const;
+  }
+  if ((confirmations ?? 0) <= 1) {
+    return "candidate" as const;
+  }
+  if ((confirmations ?? 0) < COINBASE_MATURITY_BLOCKS) {
+    return "immature" as const;
+  }
+  return "confirmed" as const;
+}
+
 export async function getPoolBlocks(): Promise<BlocksSnapshot> {
   try {
     const payouts = await poolFetch<PayoutEntry[]>("/pool/accounting");
-    const sorted = [...payouts].sort((a, b) => b.block_height - a.block_height);
+    const heights = Array.from(
+      new Set(payouts.map((entry) => entry.block_height))
+    ).sort((a, b) => b - a);
+    const [{ height: chainHeight }, ...blockResponses] = await Promise.all([
+      nodeFetch<NodeBlockCount>("/getblockcount").catch(() => ({ height: null })),
+      ...heights.map((height) =>
+        nodeFetch<NodeBlockAtHeight>(`/getblock/${height}`).catch(() => null)
+      )
+    ]);
+    const canonicalHashes = new Map<number, string | null>();
+    heights.forEach((height, index) => {
+      canonicalHashes.set(height, blockResponses[index]?.hash ?? null);
+    });
+    const rows = payouts.map((entry) => {
+      const canonicalHash = canonicalHashes.get(entry.block_height) ?? null;
+      const confirmations =
+        canonicalHash && chainHeight != null && canonicalHash === entry.block_hash
+          ? Math.max(0, chainHeight - entry.block_height + 1)
+          : null;
+      return {
+        ...entry,
+        confirmations,
+        status: deriveBlockStatus({
+          paidOut: entry.paid_out,
+          canonicalHash,
+          ledgerHash: entry.block_hash,
+          confirmations
+        })
+      };
+    });
+    const sorted = [...rows].sort((a, b) => b.block_height - a.block_height);
+    const total = new Set(
+      sorted.map((entry) => `${entry.block_height}:${entry.block_hash}`)
+    ).size;
     return {
       ok: true,
       generatedAt: new Date().toISOString(),
       blocks: sorted,
-      total: sorted.length,
+      total,
     };
   } catch (error) {
     return {

@@ -14,6 +14,7 @@ Next.js frontend for the official/reference Tensorium mining pool.
 
 ```bash
 TENSORIUM_POOL_API_URL=http://127.0.0.1:23336
+TENSORIUM_NODE_RPC_URL=https://rpc.tensoriumlabs.com
 NEXT_PUBLIC_POOL_HOST=pooltxm.tensoriumlabs.com:3333
 NEXT_PUBLIC_CHAIN_NAME=Tensorium mainnet pool
 ```

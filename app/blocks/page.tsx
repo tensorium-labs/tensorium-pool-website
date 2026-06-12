@@ -3,6 +3,7 @@
 import { Blocks, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  BlockStatus,
   BlocksSnapshot,
   POOL_FEE_PERCENT,
   POOL_TREASURY_ADDRESS,
@@ -33,6 +34,47 @@ function relativeTime(isoOrEpoch?: string | number): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function statusTone(status: BlockStatus) {
+  switch (status) {
+    case "paid":
+      return {
+        background: "rgba(31,157,104,0.1)",
+        color: "var(--green)",
+        border: "1px solid rgba(31,157,104,0.3)",
+        label: "Paid",
+      };
+    case "confirmed":
+      return {
+        background: "rgba(11,142,163,0.1)",
+        color: "var(--cyan)",
+        border: "1px solid rgba(11,142,163,0.25)",
+        label: "Confirmed",
+      };
+    case "immature":
+      return {
+        background: "rgba(188,122,19,0.08)",
+        color: "var(--amber)",
+        border: "1px solid rgba(188,122,19,0.25)",
+        label: "Immature",
+      };
+    case "orphan":
+      return {
+        background: "rgba(191,67,64,0.1)",
+        color: "var(--red)",
+        border: "1px solid rgba(191,67,64,0.25)",
+        label: "Orphan",
+      };
+    case "candidate":
+    default:
+      return {
+        background: "rgba(112,126,148,0.12)",
+        color: "var(--muted)",
+        border: "1px solid rgba(112,126,148,0.24)",
+        label: "Candidate",
+      };
+  }
 }
 
 export default function BlocksPage() {
@@ -89,6 +131,11 @@ export default function BlocksPage() {
           <p className="sectionNote">
             This page is <strong>pool-only</strong>. Direct or solo-mined blocks can still exist on-chain
             in the explorer, but they are not listed here because they bypass pool ledger accounting.
+          </p>
+          <p className="sectionNote">
+            Status flow: <strong>candidate</strong> = baru ditemukan, <strong>immature</strong> = sudah masuk chain tapi belum matang,
+            <strong> confirmed</strong> = matang dan belum dibayar, <strong>paid</strong> = payout ledger sudah dibayar,
+            <strong> orphan</strong> = block pool kalah dari chain canonical.
           </p>
         </div>
 
@@ -152,7 +199,7 @@ export default function BlocksPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--line)", textAlign: "left" }}>
-                    {["Height", "Source", "Block Hash", "Miner", "Gross Reward", "Pool Fee", "Net Payout", "Paid", ""].map(
+                    {["Height", "Source", "Block Hash", "Miner", "Gross Reward", "Pool Fee", "Net Payout", "Confs", "Status", ""].map(
                       (h) => (
                         <th
                           key={h}
@@ -165,60 +212,64 @@ export default function BlocksPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {snap.blocks.map((b, i) => (
-                    <tr
-                      key={b.block_height}
-                      style={{
-                        borderBottom: i < snap.blocks.length - 1 ? "1px solid var(--line)" : undefined,
-                        background: i % 2 === 0 ? "transparent" : "rgba(11,142,163,0.02)",
-                      }}
-                    >
-                      <td style={{ padding: "11px 16px", fontFamily: "monospace", fontWeight: 700 }}>
-                        <a
-                          href={`${EXPLORER}/block/${b.block_height}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: "var(--cyan)" }}
-                        >
-                          #{b.block_height}
-                        </a>
-                      </td>
-                      <td style={{ padding: "11px 16px" }}>
-                        <span className="sourceBadge pool">Pool block</span>
-                      </td>
-                      <td style={{ padding: "11px 16px", fontFamily: "monospace" }}>
-                        <a
-                          href={`${EXPLORER}/block/${b.block_height}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: "var(--cyan)" }}
-                          title={b.block_hash}
-                        >
-                          {shortHash(b.block_hash)}
-                        </a>
-                      </td>
-                      <td style={{ padding: "11px 16px", fontFamily: "monospace" }}>
-                        <a
-                          href={`${EXPLORER}/address/${b.miner_address}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: "var(--muted)" }}
-                          title={b.miner_address}
-                        >
-                          {shortHash(b.miner_address)}
-                        </a>
-                      </td>
-                      <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
-                        {formatTxm(b.gross_reward_atoms)} TXM
-                      </td>
-                      <td style={{ padding: "11px 16px", whiteSpace: "nowrap", color: "var(--muted)" }}>
-                        {formatTxm(b.pool_fee_atoms)} TXM
-                      </td>
-                      <td style={{ padding: "11px 16px", whiteSpace: "nowrap", fontWeight: 600, color: "var(--green)" }}>
-                        {formatTxm(b.net_payout_atoms)} TXM
-                      </td>
-                      <td style={{ padding: "11px 16px" }}>
-                        {b.paid_out ? (
+                  {snap.blocks.map((b, i) => {
+                    const tone = statusTone(b.status);
+                    return (
+                      <tr
+                        key={`${b.block_height}-${b.block_hash}-${b.miner_address}`}
+                        style={{
+                          borderBottom: i < snap.blocks.length - 1 ? "1px solid var(--line)" : undefined,
+                          background: i % 2 === 0 ? "transparent" : "rgba(11,142,163,0.02)",
+                        }}
+                      >
+                        <td style={{ padding: "11px 16px", fontFamily: "monospace", fontWeight: 700 }}>
+                          <a
+                            href={`${EXPLORER}/block/${b.block_height}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "var(--cyan)" }}
+                          >
+                            #{b.block_height}
+                          </a>
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          <span className="sourceBadge pool">Pool block</span>
+                        </td>
+                        <td style={{ padding: "11px 16px", fontFamily: "monospace" }}>
+                          <a
+                            href={`${EXPLORER}/block/${b.block_height}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "var(--cyan)" }}
+                            title={b.block_hash}
+                          >
+                            {shortHash(b.block_hash)}
+                          </a>
+                        </td>
+                        <td style={{ padding: "11px 16px", fontFamily: "monospace" }}>
+                          <a
+                            href={`${EXPLORER}/address/${b.miner_address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "var(--muted)" }}
+                            title={b.miner_address}
+                          >
+                            {shortHash(b.miner_address)}
+                          </a>
+                        </td>
+                        <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                          {formatTxm(b.gross_reward_atoms)} TXM
+                        </td>
+                        <td style={{ padding: "11px 16px", whiteSpace: "nowrap", color: "var(--muted)" }}>
+                          {formatTxm(b.pool_fee_atoms)} TXM
+                        </td>
+                        <td style={{ padding: "11px 16px", whiteSpace: "nowrap", fontWeight: 600, color: "var(--green)" }}>
+                          {formatTxm(b.net_payout_atoms)} TXM
+                        </td>
+                        <td style={{ padding: "11px 16px", whiteSpace: "nowrap", color: "var(--muted)" }}>
+                          {b.confirmations == null ? "—" : b.confirmations}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
                           <span
                             style={{
                               display: "inline-block",
@@ -226,43 +277,28 @@ export default function BlocksPage() {
                               borderRadius: 99,
                               fontSize: "0.74rem",
                               fontWeight: 700,
-                              background: "rgba(31,157,104,0.1)",
-                              color: "var(--green)",
-                              border: "1px solid rgba(31,157,104,0.3)",
+                              background: tone.background,
+                              color: tone.color,
+                              border: tone.border,
                             }}
                           >
-                            Paid
+                            {tone.label}
                           </span>
-                        ) : (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 9px",
-                              borderRadius: 99,
-                              fontSize: "0.74rem",
-                              fontWeight: 700,
-                              background: "rgba(188,122,19,0.08)",
-                              color: "var(--amber)",
-                              border: "1px solid rgba(188,122,19,0.25)",
-                            }}
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          <a
+                            href={`${EXPLORER}/block/${b.block_height}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View in explorer"
+                            style={{ color: "var(--muted)", display: "flex", alignItems: "center" }}
                           >
-                            Pending
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: "11px 16px" }}>
-                        <a
-                          href={`${EXPLORER}/block/${b.block_height}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View in explorer"
-                          style={{ color: "var(--muted)", display: "flex", alignItems: "center" }}
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                            <ExternalLink size={14} />
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
